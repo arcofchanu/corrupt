@@ -572,6 +572,7 @@ select.field { cursor: pointer; appearance: none; background-image: url("data:im
         <div class="lbl" style="margin:0;min-width:82px">Intensity</div>
         <div class="dots" id="eDots"></div>
         <div class="int-lbl" id="eIntLbl"></div>
+        <button id="btnFull" class="btn sm-btn" style="margin-left:auto" onclick="toggleEncFull()">FULL / NO-RNG</button>
       </div>
 
       <div class="slabel" style="margin-top:4px">Input</div>
@@ -735,7 +736,7 @@ const LS="corrupt_v2";
 const SAMPLE="corrupt";
 
 let styles=[],customChars=[],activeId=null,editingId=null;
-let encInt=2,edInt=2,edSel={above:new Set(),below:new Set(),thru:new Set()},lastOut="";
+let encInt=2,edInt=2,encFull=false,edSel={above:new Set(),below:new Set(),thru:new Set()},lastOut="";
 
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
 function uid(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36)}
@@ -747,7 +748,7 @@ function save(){try{localStorage.setItem(LS,JSON.stringify({styles,customChars,a
 
 function getZoneChars(zone){return [...CAT[zone],...customChars.filter(c=>c.zone===zone).map(c=>({...c,custom:true}))]}
 
-function transform(text,style,inten){
+function transform(text,style,inten,isFull=false){
   if(!style)return{text,added:0};
   const a=style.above||[],b=style.below||[],t=style.thru||[];
   if(!a.length&&!b.length&&!t.length)return{text,added:0};
@@ -755,9 +756,17 @@ function transform(text,style,inten){
   for(const ch of text){
     out+=ch;
     if(" \n\r\t".includes(ch))continue;
-    if(a.length){const n=inten===1?(Math.random()<.5?1:0):Math.floor(Math.random()*inten)+1;for(let i=0;i<n;i++){out+=a[Math.floor(Math.random()*a.length)];added++}}
-    if(b.length){const n=inten<=2?(Math.random()<.6?1:0):Math.floor(Math.random()*Math.ceil(inten/2))+1;for(let i=0;i<n;i++){out+=b[Math.floor(Math.random()*b.length)];added++}}
-    if(t.length&&Math.random()<.2+inten*.1){out+=t[Math.floor(Math.random()*t.length)];added++}
+    if(a.length){
+      const n=isFull ? inten : (inten===1?(Math.random()<.5?1:0):Math.floor(Math.random()*inten)+1);
+      for(let i=0;i<n;i++){out+=a[Math.floor(Math.random()*a.length)];added++}
+    }
+    if(b.length){
+      const n=isFull ? Math.ceil(inten/2) : (inten<=2?(Math.random()<.6?1:0):Math.floor(Math.random()*Math.ceil(inten/2))+1);
+      for(let i=0;i<n;i++){out+=b[Math.floor(Math.random()*b.length)];added++}
+    }
+    if(t.length && (isFull || Math.random()<.2+inten*.1)){
+      out+=t[Math.floor(Math.random()*t.length)];added++
+    }
   }
   return{text:out,added}
 }
@@ -795,13 +804,19 @@ function buildEncDots(){
   document.getElementById("eIntLbl").textContent=INT_LABELS[encInt];
 }
 
+function toggleEncFull(){
+  encFull=!encFull;
+  document.getElementById("btnFull").classList.toggle("pri",encFull);
+  updateEncode();
+}
+
 function updateEncode(){
   const text=document.getElementById("eInput").value;
   const outEl=document.getElementById("eOut");const statEl=document.getElementById("statRow");
   if(!text.trim()){outEl.innerHTML='<span class="ph">output appears here — type on the left</span>';statEl.innerHTML="";lastOut="";return}
   const style=styles.find(s=>s.id===activeId);
   if(!style){outEl.innerHTML='<span class="ph">select or create a style first</span>';return}
-  const r=transform(text,style,encInt);
+  const r=transform(text,style,encInt,encFull);
   lastOut=r.text;
   outEl.textContent=lastOut;
   statEl.innerHTML=`<div class="stat">chars <b>${text.length}</b></div><div class="stat">combining <b>+${r.added}</b></div><div class="stat">total <b>${lastOut.length}</b></div>`;
