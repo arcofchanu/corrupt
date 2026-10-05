@@ -381,11 +381,7 @@ body { display: flex; flex-direction: column; }
 .phead-title { font-size: 20px; font-weight: 700; letter-spacing: .18em; color: var(--ac); text-shadow: 0 0 20px var(--glow); }
 .phead-sub   { font-size: 10px; color: var(--dim); letter-spacing: .1em; margin-top: 4px; }
 
-/* ── CHIPS ── */
-.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
-.chip { background: var(--s1); border: 1px solid var(--bd); color: var(--dim); font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .1em; padding: 7px 13px; cursor: pointer; transition: all .12s; white-space: nowrap; }
-.chip .chip-sub { display: block; font-size: 9px; font-weight: 300; opacity: .6; margin-top: 2px; }
-.chip.active { background: rgba(157,78,221,.12); border-color: var(--ac); color: var(--ac2); box-shadow: 0 0 10px #9D4EDD22; }
+/* ── REMOVED CHIPS CSS ── */
 .no-hint { color: var(--dim); font-size: 11px; padding: 6px 0; }
 
 /* ── INTENSITY DOTS ── */
@@ -399,11 +395,11 @@ body { display: flex; flex-direction: column; }
 textarea, .field {
   width: 100%; background: var(--s1); border: 1px solid var(--bd);
   color: var(--tx); font-family: var(--mono); font-size: 13px; line-height: 1.6;
-  padding: 12px; outline: none; border-radius: 0; transition: border-color .15s, box-shadow .15s;
+  padding: 0 12px; outline: none; border-radius: 0; transition: border-color .15s, box-shadow .15s;
 }
 textarea:focus, .field:focus { border-color: rgba(157,78,221,.6); box-shadow: 0 0 0 1px rgba(157,78,221,.15); }
 textarea::placeholder, .field::placeholder { color: var(--dim); }
-textarea { resize: none; height: 140px; }
+textarea { resize: none; height: 140px; padding: 12px; }
 .field { height: 36px; margin-bottom: 6px; }
 .field.sm { font-size: 12px; height: 32px; margin-bottom: 0; }
 select.field { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%234D3B6E' d='M6 8L0 0h12z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
@@ -569,7 +565,7 @@ select.field { cursor: pointer; appearance: none; background-image: url("data:im
 
       <div>
         <div class="lbl">Active Style</div>
-        <div class="chip-row" id="chipRow"></div>
+        <select class="field" id="styleSelect" style="margin-bottom:14px; font-weight:600; letter-spacing:.05em" onchange="activeId=this.value;save();updateEncode();syncHeader()"></select>
       </div>
 
       <div class="int-row">
@@ -775,14 +771,19 @@ function syncHeader(){
 
 /* ENCODE */
 function buildChips(){
-  const el=document.getElementById("chipRow");el.innerHTML="";
-  if(!styles.length){el.innerHTML='<div class="no-hint">no styles yet — go to Library</div>';return}
+  const el=document.getElementById("styleSelect");
+  if(!el) return;
+  el.innerHTML="";
+  if(!styles.length){
+    el.innerHTML='<option value="">(no styles yet — go to Library)</option>';
+    return;
+  }
   styles.forEach(s=>{
-    const b=document.createElement("button");
-    b.className="chip"+(s.id===activeId?" active":"");
-    b.innerHTML=`${esc(s.name)}<span class="chip-sub">${esc(s.desc||"—")}</span>`;
-    b.onclick=()=>{activeId=s.id;save();buildChips();updateEncode();syncHeader()};
-    el.appendChild(b);
+    const opt=document.createElement("option");
+    opt.value=s.id;
+    opt.textContent=s.name + (s.desc ? ` — ${s.desc}` : "");
+    opt.selected = s.id === activeId;
+    el.appendChild(opt);
   });
 }
 function buildEncDots(){
@@ -1015,10 +1016,11 @@ const DEFAULTS=[
 
 /* INIT */
 load();
-// Seed defaults if library is empty
-if(!styles.length){
-  styles=DEFAULTS.map(s=>({...s}));
-  activeId="default_1";
+// Ensure defaults always exist alongside user styles
+const missingDefaults = DEFAULTS.filter(d => !styles.some(s => s.id === d.id));
+if (missingDefaults.length > 0) {
+  styles = [...missingDefaults.map(s => ({...s})), ...styles];
+  if (!activeId) activeId = "default_1";
   save();
 }
 buildChips();buildEncDots();
